@@ -98,7 +98,7 @@ server.get("/messages", async (req, res) => {
         }
 
         let filtrados = listaMensagens.filter(filtragemParaExibicao);
-        let filtradosQuantidade = filtrados.slice(-limit);
+        let filtradosQuantidade = filtrados.slice(-filtro);
         res.send(filtradosQuantidade);
     } catch (error) {
         res.status(500).send(error.message);
