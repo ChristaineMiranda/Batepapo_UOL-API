@@ -22,7 +22,7 @@ try {
 } catch (err) {
     console.log("err.message");
 }
-const db = mongoClient.db("bancodedados")
+const db = mongoClient.db()
 
 server.post("/participants", async (req, res) => {
     const nome = req.body;
@@ -92,7 +92,6 @@ server.get("/messages", async (req, res) => {
     if (isNaN(filtro) || filtro <= 0) return res.status(422).send("Filtro inválido");
 
     function filtragemParaExibicao(item) {
-        console.log(item.type)
         if (item.to === user || item.from === user || item.type == "message") return true;
         else return false;
     }
