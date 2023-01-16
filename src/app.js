@@ -28,11 +28,14 @@ server.post("/participants", async (req, res) => {
     const nome = req.body;
     const validaSchema = joi.object({name: joi.string().required()});
     const validation = validaSchema.validate(nome);
+    console.log(nome)
     if (validation.error) return res.status(422).send("Favor informar o nome");
     try {
         const busca = await db.collection("participants").findOne({ name: nome });
         if (!busca) {
-            await db.collection("participants").insertOne({ name: nome, lastStatus: Date.now() });
+            const horario = dayjs().format('hh:mm:ss');
+            await db.collection("participants").insertOne({ name: nome.name, lastStatus: Date.now() });
+            await db.collection("messages").insertOne({from: nome.name, to: 'Todos', text: 'entra na sala...', type: 'status', time: horario})
             return res.sendStatus(201);
         }
         res.status(409).send("Já existe um cadastro nesse nome");
@@ -71,14 +74,23 @@ server.post("/messages", async (req, res) => {
            await db.collection("messages").insertOne({from: user, to: conteudo.to, text: conteudo.text, type: conteudo.type, time: horario})
             return res.sendStatus(201);
         }
-        res.send("usuario nao cadastrado")
+        res.status(400).send("usuario nao cadastrado")
         
     } catch (error) {
         res.status(500).send(error.message)      
     }
 });
 
+server.get("/messages", async (req,res) => {
+    const filtro = req.query.limit;
+    const listaMensagens = await db.collection("messages").find().toArray();
 
+    if(!filtro){
+        return res.send(listaMensagens);
+    }
+    //dar um reverse, depois um slice
+    res.send(listaMensagens.slice(filtro));
+})
 
 
 
