@@ -69,12 +69,11 @@ server.post("/messages", async (req, res) => {
     try {
         const horario = dayjs().format('hh:mm:ss');
         const buscaUsuario = await db.collection("participants").findOne({ name: user })
-        console.log({ from: user, to: conteudo.to, text: conteudo.text, type: conteudo.type, time: horario })
         if (buscaUsuario) {
             await db.collection("messages").insertOne({ from: user, to: conteudo.to, text: conteudo.text, type: conteudo.type, time: horario })
             return res.sendStatus(201);
         }
-        res.status(409).send("usuario nao cadastrado")
+        res.status(422).send("usuario nao cadastrado")
 
     } catch (error) {
         res.status(500).send(error.message)
@@ -84,21 +83,38 @@ server.post("/messages", async (req, res) => {
 server.get("/messages", async (req, res) => {
     const filtro = req.query.limit;
     const { user } = req.headers;
-    const listaMensagens = await db.collection("messages").find().toArray();
 
-    if (!filtro) {
-        return res.send(listaMensagens);
+    try {
+        const listaMensagens = await db.collection("messages").find().toArray();
+
+        if (!filtro) {
+            return res.send(listaMensagens);
+        }
+        if (isNaN(filtro) || filtro <= 0) return res.status(422).send("Filtro inválido");
+
+        function filtragemParaExibicao(item) {
+            if (item.to === user || item.from === user || item.type == "message") return true;
+            else return false;
+        }
+
+        let filtrados = listaMensagens.filter(filtragemParaExibicao);
+        let filtradosQuantidade = filtrados.slice(-limit);
+        res.send(filtradosQuantidade);
+    } catch (error) {
+        res.status(500).send(error.message);
     }
-    if (isNaN(filtro) || filtro <= 0) return res.status(422).send("Filtro inválido");
+});
 
-    function filtragemParaExibicao(item) {
-        if (item.to === user || item.from === user || item.type == "message") return true;
-        else return false;
+server.post("/status", async (req, res) => {
+    const { user } = req.headers;
+    try {
+        const busca = await db.collection("participants").findOne({ name: user });
+        if (!busca) return res.status(404).send("Usuário não encontrado");
+        await db.collection("participants").updateOne({ name: user }, { $set: { lastStatus: Date.now() } })
+        res.send("status atualizado")
+    } catch (error) {
+        res.status(500).send(error.message)
     }
-
-    let filtrados = listaMensagens.filter(filtragemParaExibicao);
-    //const filtrados = listaMensagens.slice(-filtro);
-    res.send(filtrados);
 })
 
 
