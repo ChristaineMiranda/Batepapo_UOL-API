@@ -22,7 +22,7 @@ try {
 } catch (err) {
     console.log(err.message);
 }
-const db = mongoClient.db()
+const db = mongoClient.db("bancodedados")
 
 server.post("/participants", async (req, res) => {
     const nome = req.body;
@@ -98,10 +98,10 @@ server.get("/messages", async (req, res) => {
         }
 
         function formataMensagem(item) {
-           return {
+            return {
                 to: item.to,
-                text:item.text,
-                type:item.type,
+                text: item.text,
+                type: item.type,
                 from: item.from
             }
         }
@@ -127,17 +127,17 @@ server.post("/status", async (req, res) => {
     }
 })
 
-function removeInativos() {
 
+async function removeInativos() {
+    let tolerancia = Date.now - 10000;
+    let usuariosARemover = await db.collection("participants").find({ lastStatus: { $lt: tolerancia } }).toArray();
 
-    async function remove(item) {
+    const novo = usuariosARemover.map(async (item) => {
         await db.collection("messages").insertOne({ from: item.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: Date.now() });
         await db.collection("participants").deleteOne({ name: item.name });
-    }
+        return true
+    })
 
-    let tolerancia = Date.now - 10000;
-    let usuariosARemover = db.collection("participants").find({ lastStatus: { $lt: tolerancia } }).toArray();
-    usuariosARemover.map(remove);
 
 
 }
