@@ -97,10 +97,19 @@ server.get("/messages", async (req, res) => {
             else return false;
         }
 
+        function formataMensagem(item) {
+           return {
+                to: item.to,
+                text:item.text,
+                type:item.type,
+                from: item.from
+            }
+        }
+
         let filtrados = listaMensagens.filter(filtragemParaExibicao);
         let filtradosQuantidade = filtrados.slice(-filtro);
-        let filtradosFormatados = filtradosQuantidade.map()// FORMATAR
-        res.send(filtradosQuantidade);
+        let filtradosFormatados = filtradosQuantidade.map(formataMensagem)
+        res.send(filtradosFormatados);
     } catch (error) {
         res.status(500).send(error.message);
     }
@@ -118,19 +127,19 @@ server.post("/status", async (req, res) => {
     }
 })
 
-function removeInativos(){
-   
+function removeInativos() {
 
-    async function remove(item){
-        await db.collection("messages").insertOne({from: item.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: Date.now()});
-        await db.collection("participants").deleteOne({name : item.name});
+
+    async function remove(item) {
+        await db.collection("messages").insertOne({ from: item.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: Date.now() });
+        await db.collection("participants").deleteOne({ name: item.name });
     }
 
-    let tolerancia = Date.now - 10000;    
-    let usuariosARemover = db.collection("participants").find({lastStatus: { $lt: tolerancia }}).toArray();
+    let tolerancia = Date.now - 10000;
+    let usuariosARemover = db.collection("participants").find({ lastStatus: { $lt: tolerancia } }).toArray();
     usuariosARemover.map(remove);
 
-    
+
 }
 
 setInterval(removeInativos, 15000);
