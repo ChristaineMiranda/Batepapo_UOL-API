@@ -61,7 +61,7 @@ server.post("/messages", async (req, res) => {
     const conteudoSchema = joi.object({
         to: joi.string().required(),
         text: joi.string().required(),
-        type: joi.string().pattern(/^[message, private_message]+$/).required()
+        type: joi.string().valid("message", "private_message").required()
     })
     const validation = conteudoSchema.validate(conteudo);
     if (validation.error) return res.status(422).send(validation.error.details);
@@ -84,32 +84,35 @@ server.get("/messages", async (req, res) => {
     const filtro = req.query.limit;
     const { user } = req.headers;
 
+
+    function filtragemParaExibicao(item) {
+        if (item.to === user || item.from === user || item.type == "message") return true;
+        else return false;
+    }
+    function formataMensagem(item) {
+        return {
+            to: item.to,
+            text: item.text,
+            type: item.type,
+            from: item.from,
+            time: item.time
+        }
+    }
+
+
     try {
         const listaMensagens = await db.collection("messages").find().toArray();
+        let filtrados = listaMensagens.filter(filtragemParaExibicao);
+        let filtradosFormatados = filtrados.map(formataMensagem);
 
         if (!filtro) {
-            return res.send(listaMensagens);
+            return res.send(filtradosFormatados);
         }
         if (isNaN(filtro) || filtro <= 0) return res.status(422).send("Filtro inválido");
+        
+        let filtradosQuantidade = filtradosFormatados.slice(-filtro);   
+        res.send(filtradosQuantidade);
 
-        function filtragemParaExibicao(item) {
-            if (item.to === user || item.from === user || item.type == "message") return true;
-            else return false;
-        }
-
-        function formataMensagem(item) {
-            return {
-                to: item.to,
-                text: item.text,
-                type: item.type,
-                from: item.from
-            }
-        }
-
-        let filtrados = listaMensagens.filter(filtragemParaExibicao);
-        let filtradosQuantidade = filtrados.slice(-filtro);
-        let filtradosFormatados = filtradosQuantidade.map(formataMensagem)
-        res.send(filtradosFormatados);
     } catch (error) {
         res.status(500).send(error.message);
     }
