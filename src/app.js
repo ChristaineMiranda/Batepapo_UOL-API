@@ -85,32 +85,36 @@ server.get("/messages", async (req, res) => {
     const { user } = req.headers;
 
 
-    function filtragemParaExibicao(item) {
-        if (item.to === user || item.from === user || item.type == "message") return true;
-        else return false;
-    }
-    function formataMensagem(item) {
-        return {
-            to: item.to,
-            text: item.text,
-            type: item.type,
-            from: item.from,
-            time: item.time
-        }
-    }
+    // function filtragemParaExibicao(item) {
+    //     if (item.to === user || item.from === user || item.type == "message") return true;
+    //     else return false;
+    // }
+    // function formataMensagem(item) {
+    //     return {
+    //         to: item.to,
+    //         text: item.text,
+    //         type: item.type,
+    //         from: item.from,
+    //         time: item.time
+    //     }
+    // }
 
 
     try {
-        const listaMensagens = await db.collection("messages").find().toArray();
-        let filtrados = listaMensagens.filter(filtragemParaExibicao);
-        let filtradosFormatados = filtrados.map(formataMensagem);
+        const listaMensagens = await db.collection("messages").find({$or:[
+            { from: user },
+            { to: { $in: [user, "Todos"] } },
+            { type: "message" }
+          ]}).toArray();
+        // let filtrados = listaMensagens.filter(filtragemParaExibicao);
+        //let filtradosFormatados = filtrados.map(formataMensagem);
 
         if (!filtro) {
-            return res.send(filtradosFormatados);
+            return res.send(listaMensagens);
         }
         if (isNaN(filtro) || filtro <= 0) return res.status(422).send("Filtro inválido");
-        
-        let filtradosQuantidade = filtradosFormatados.slice(-filtro);   
+
+        let filtradosQuantidade = listaMensagens.slice(-filtro);
         res.send(filtradosQuantidade);
 
     } catch (error) {
@@ -132,17 +136,19 @@ server.post("/status", async (req, res) => {
 
 
 async function removeInativos() {
-    let tolerancia = Date.now - 10000;
-    let usuariosARemover = await db.collection("participants").find({ lastStatus: { $lt: tolerancia } }).toArray();
+    let tolerancia = Date.now() - 10000;
 
-    const novo = usuariosARemover.map(async (item) => {
-        await db.collection("messages").insertOne({ from: item.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: Date.now() });
-        await db.collection("participants").deleteOne({ name: item.name });
-        return true
-    })
+    try {
+        const usuariosARemover = await db.collection("participants").find({ lastStatus: { $lte: tolerancia } }).toArray();
 
-
-
+        const remove = usuariosARemover.map(async (item) => {
+            await db.collection("messages").insertOne({ from: item.name, to: 'Todos', text: 'sai da sala...', type: 'status', time: Date.now() });
+            await db.collection("participants").deleteOne({ name: item.name });
+            return true
+        })
+    } catch (error) {
+        res.status(500).send("Erro ao remover do banco de dados");
+    }
 }
 
 setInterval(removeInativos, 15000);
